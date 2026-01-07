@@ -1,9 +1,11 @@
+DEPLOY_MODE = True  # lite cloud deployment
 print("WEB APP FILE EXECUTED")
 
 from flask import Flask, render_template, request
 import os
 
-from agents.scout_agent import extract_frames, extract_audio
+if not DEPLOY_MODE:
+    from agents.scout_agent import extract_frames, extract_audio
 from agents.frame_selector_agent import select_key_frames
 from agents.audio_agent import analyze_audio
 from agents.vision_agent import analyze_frames
@@ -81,3 +83,4 @@ def index():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
