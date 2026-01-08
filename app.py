@@ -1,25 +1,43 @@
-DEPLOY_MODE = True  # lite cloud deployment
+DEPLOY_MODE = True
 print("WEB APP FILE EXECUTED")
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import os
-
-if not DEPLOY_MODE:
-    from agents.scout_agent import extract_frames, extract_audio
-from agents.frame_selector_agent import select_key_frames
-from agents.audio_agent import analyze_audio
-from agents.vision_agent import analyze_frames
-from agents.decision_agent import fuse_scores
-from utils.report_generator import generate_report, generate_text_report
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# =========================
+# LOCAL-ONLY IMPORTS
+# =========================
+if not DEPLOY_MODE:
+    from agents.scout_agent import extract_frames, extract_audio
+    from agents.frame_selector_agent import select_key_frames
+    from agents.audio_agent import analyze_audio
+    from agents.vision_agent import analyze_frames
+    from agents.decision_agent import fuse_scores
+    from utils.report_generator import generate_report, generate_text_report
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+
+    # =========================
+    # CLOUD / LITE MODE
+    # =========================
+    if DEPLOY_MODE:
+        return jsonify({
+            "service": "FrameGuard",
+            "status": "live",
+            "mode": "lite deployment",
+            "note": "Heavy audio/video forensics disabled on free-tier cloud deployment"
+        })
+
+    # =========================
+    # LOCAL / FULL MODE
+    # =========================
     result = None
 
     if request.method == "POST":
@@ -50,7 +68,7 @@ def index():
             laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
 
             visual_score = max(0.0, min(1.0, 1.0 - (laplacian_var / 1500)))
-            audio_score = 0.3 #uncertainity penalty for image-only input
+            audio_score = 0.3  # uncertainty penalty for image-only input
 
             total_frames = 1
             selected_count = 1
@@ -82,5 +100,5 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
-
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
